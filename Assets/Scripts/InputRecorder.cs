@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
+// Written by Brandon Callaway
+// This script is to be added to whatever game object that acts as the players car
 public class InputRecorder : MonoBehaviour
 {
     public static InputRecorder instance { get; private set; }
@@ -11,8 +13,6 @@ public class InputRecorder : MonoBehaviour
     int currentFrame = 0;
     bool isRecording = true;
     bool isPlaying = false;
-
-    DataFrameSet frameSet = new DataFrameSet();
 
     List<DataFrame> frameDataList = new List<DataFrame>();
     public List<DataFrame> loadedFrames = new List<DataFrame>();
@@ -49,28 +49,19 @@ public class InputRecorder : MonoBehaviour
         }
         timer++;
 
-
-        // Debug code for manually stopping recording
-        // TODO - REFACTOR THIS TO ALLOW FOR TRIGGER IN GAME
+        // This is for dev manipulation
+        // KeyCode.P = stop recording, starts with scene start - TO BE REFACTORED FOR LAP START
+        // KeyCode.LeftBracket = Loads frames to list for playback 
         if (Input.GetKeyDown(KeyCode.P))
         {
             isRecording = false;
-            frameSet.frameDataList = frameDataList;
             SaveDataToFile();
-        }
-
-        if (Input.GetKeyDown(KeyCode.RightBracket))
-        {
-            Debug.Log(loadedFrames.Count);
         }
 
         if (Input.GetKeyDown(KeyCode.LeftBracket))
         {
             loadedFrames = LoadDataFromFile();
-            
         }
-
-        //Debug.Log(frameDataList.Count);
     }
 
     private void RecordFrames(int frame)
@@ -90,10 +81,11 @@ public class InputRecorder : MonoBehaviour
         return;
     }
 
-    // TODO - REFACTOR FOR CUSTOM SAVE AND LOAD, JSON DOESNT SUPPORT LISTS
+    // Save frame data for car
+    // "NUM" "POS" "ROT" refer to different files, which are split by caseIndex values
+    // Frame Number 0, Position(1, 2, 3), Rotation(4, 5, 6, 7)
     private void SaveDataToFile()
     {
-        //StreamWriter streamWriter = new StreamWriter(Application.dataPath + "/frameData.txt");
         SaveDataTestFunc("NUM", 0);
         SaveDataTestFunc("POS", 1);
         SaveDataTestFunc("POS", 2);
@@ -102,31 +94,32 @@ public class InputRecorder : MonoBehaviour
         SaveDataTestFunc("ROT", 5);
         SaveDataTestFunc("ROT", 6);
         SaveDataTestFunc("ROT", 7);
-
-        /*
-        for (int frame = 0; frame < frameDataList.Count; frame++)
-        {
-            DataFrame tempFrame = frameDataList[frame];
-            //streamWriter.Write($"_{tempFrame.frameNumber}-{tempFrame.position}={tempFrame.rotation}");
-            //Debug.Log($"N:{tempFrame.frameNumber}, P:{tempFrame.position}, R:{tempFrame.rotation}");
-        }
-        */
     }
 
+    // I'm lazy, and didnt want to figure out how to do multi splits for saving/loading data
+    // So this is disgusting in terms of effeciency, but if my old laptop can run it without frame loss
+    // this is gonna be how it is -brandon
     private void SaveDataTestFunc(string mod, int caseIndex)
     {
+        // Create streamwriter
         StreamWriter streamWriter = new StreamWriter(Application.dataPath + $"/frameData{mod}{caseIndex}.txt");
 
+        // Guard statement incase case index is invalid
         if (caseIndex < 0 || caseIndex > 7)
         {
             Debug.Log("INVALID CASE INDEX, 0=FRAME NUMBER, 1=POSX, 2=POSY, 3=POSZ, 4=ROTX, 5=ROTY, 6=ROTZ, 7=ROTW");
             return;
         }
 
+        // Loop through all frames
         for (int frame = 0; frame < frameDataList.Count; frame++)
         {
+            
             DataFrame tempFrame = frameDataList[frame];
-   
+
+            // Write different portions of data depending on caseIndex value
+            // 0=FRAME NUMBER, 1=POSX, 2=POSY, 3=POSZ, 4=ROTX, 5=ROTY, 6=ROTZ, 7=ROTW
+            // Frame Number, Vector3 position data, Quaternion rotation data
             if (caseIndex == 0)
             {
                 streamWriter.Write($"{tempFrame.frameNumber}_");
@@ -160,6 +153,8 @@ public class InputRecorder : MonoBehaviour
                 streamWriter.Write($"{tempFrame.rotation.w}_");
             }
         }
+
+        // Close streamwriter as memory leaks are not friendly
         streamWriter.Close();
     }
 
@@ -185,44 +180,45 @@ public class InputRecorder : MonoBehaviour
         return tempFloatArray;
     }
 
+    // Loads data files for player pos/rot data
     private List<DataFrame> LoadDataFromFile()
     {
+        // Load individual arrays with num/pos/rot data
         float[] dataFrameNumbers = LoadDataTestFunc("NUM", 0);
-
         float[] dataFramePOSX = LoadDataTestFunc("POS", 1);
         float[] dataFramePOSY = LoadDataTestFunc("POS", 2);
         float[] dataFramePOSZ = LoadDataTestFunc("POS", 3);
-
         float[] dataFrameROTX = LoadDataTestFunc("ROT", 4);
         float[] dataFrameROTY = LoadDataTestFunc("ROT", 5);
         float[] dataFrameROTZ = LoadDataTestFunc("ROT", 6);
         float[] dataFrameROTW = LoadDataTestFunc("ROT", 7);
 
+        // Create temp list of DataFrames
         List<DataFrame> loadedDataFrames = new List<DataFrame>();
 
+        // Loop through temp list
         for (int i = 0; i < dataFrameNumbers.Length; i++)
         {
+            // Create new data frame
             DataFrame newDataFrame = new DataFrame();
+
+            // Load data frame data from individual arrays to new data frame
             newDataFrame.frameInterval = 6;
             newDataFrame.frameNumber = (int)dataFrameNumbers[i];
             newDataFrame.position = new Vector3(dataFramePOSX[i], dataFramePOSY[i], dataFramePOSZ[i]);
             newDataFrame.rotation = new Quaternion(dataFrameROTX[i], dataFrameROTY[i], dataFrameROTZ[i], dataFrameROTW[i]);
+
+            // Add dataframe to temp list
             loadedDataFrames.Add(newDataFrame);
         }
 
+        // Return temp list of data frames for use in GhostCar script
         return loadedDataFrames;
     }
 }
 
-// This is probably unneccessary
-[Serializable]
-public class DataFrameSet
-{
-    public List<DataFrame> frameDataList = new List<DataFrame>();
-
-}
-
-// DataFrame class, holds number, as well as 
+// DataFrame class
+// Holds frame number, interval of frames, position and rotation data.
 public class DataFrame
 {
     public int frameNumber;

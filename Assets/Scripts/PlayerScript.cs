@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+// NOT NEEDED, REMOVE NEXT COMMIT
 public class PlayerScript : MonoBehaviour
 {
     private Rigidbody rb;
